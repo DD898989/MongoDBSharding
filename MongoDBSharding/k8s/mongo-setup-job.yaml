@@ -1,0 +1,70 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongodb-setup
+spec:
+  template:
+    spec:
+      containers:
+        - name: setup
+          image: mongo:latest
+          command:
+            - bash
+            - -c
+            - |
+              echo '==== Waiting for MongoDB services to be ready ===='
+              until mongosh --host configsvr --port 15561 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
+              echo '==== Initializing configsvr replica set ===='
+              mongosh --host configsvr --port 15561 --eval '
+                rs.initiate({
+                  _id: "configReplSet",
+                  configsvr: true,
+                  members: [{ _id: 0, host: "configsvr:15561" }]
+                });
+              '
+
+              until mongosh --host shard1 --port 15562 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
+              echo '==== Initializing shard1 replica set ===='
+              mongosh --host shard1 --port 15562 --eval '
+                rs.initiate({
+                  _id: "shard1ReplSet",
+                  members: [{ _id: 0, host: "shard1:15562" }]
+                });
+              '
+
+              until mongosh --host shard2 --port 15563 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
+              echo '==== Initializing shard2 replica set ===='
+              mongosh --host shard2 --port 15563 --eval '
+                rs.initiate({
+                  _id: "shard2ReplSet",
+                  members: [{ _id: 0, host: "shard2:15563" }]
+                });
+              '
+
+              until mongosh --host mydefault --port 15565 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
+              echo '==== Initializing mydefault replica set ===='
+              mongosh --host mydefault --port 15565 --eval '
+                rs.initiate({
+                  _id: "mydefaultReplSet",
+                  members: [{ _id: 0, host: "mydefault:15565" }]
+                });
+              '
+
+              until mongosh --host mongos --port 15564 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
+              echo '==== Adding shards and enabling sharding via mongos ===='
+              mongosh --host mongos --port 15564 --eval '
+                sh.addShard("shard1ReplSet/shard1:15562");
+                sh.addShard("shard2ReplSet/shard2:15563");
+                sh.addShard("mydefaultReplSet/mydefault:15565");
+                
+                db = db.getSiblingDB("ShardingDb");
+
+                sh.enableSharding("ShardingDb");
+                db.getSiblingDB("admin").runCommand({ movePrimary: "ShardingDb", to: "mydefaultReplSet" });
+
+                sh.addShardToZone("shard1ReplSet", "my_zone");
+                sh.addShardToZone("shard2ReplSet", "my_zone");
+              '
+              echo '==== MongoDB Sharding Setup Completed successfully! ===='
+      restartPolicy: OnFailure
+  backoffLimit: 4

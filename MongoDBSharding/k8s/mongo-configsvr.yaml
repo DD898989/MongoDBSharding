@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: configsvr
+  labels:
+    app: configsvr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: configsvr
+  template:
+    metadata:
+      labels:
+        app: configsvr
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:latest
+          command:
+            - mongod
+            - --configsvr
+            - --replSet
+            - configReplSet
+            - --port
+            - "15561"
+            - --bind_ip_all
+          ports:
+            - containerPort: 15561
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: configsvr
+spec:
+  type: LoadBalancer
+  ports:
+    - name: ext-port
+      port: 27016
+      targetPort: 15561
+    - name: int-port
+      port: 15561
+      targetPort: 15561
+  selector:
+    app: configsvr

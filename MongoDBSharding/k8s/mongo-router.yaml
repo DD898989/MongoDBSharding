@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongos
+  labels:
+    app: mongos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongos
+  template:
+    metadata:
+      labels:
+        app: mongos
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:latest
+          command:
+            - mongos
+            - --configdb
+            - configReplSet/configsvr:15561
+            - --port
+            - "15564"
+            - --bind_ip_all
+          ports:
+            - containerPort: 15564
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongos
+spec:
+  type: LoadBalancer
+  ports:
+    - name: ext-port
+      port: 27017
+      targetPort: 15564
+    - name: int-port
+      port: 15564
+      targetPort: 15564
+  selector:
+    app: mongos

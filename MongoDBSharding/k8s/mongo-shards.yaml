@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shard1
+  labels:
+    app: shard1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shard1
+  template:
+    metadata:
+      labels:
+        app: shard1
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:latest
+          command:
+            - mongod
+            - --shardsvr
+            - --replSet
+            - shard1ReplSet
+            - --port
+            - "15562"
+            - --bind_ip_all
+          ports:
+            - containerPort: 15562
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shard1
+spec:
+  type: LoadBalancer
+  ports:
+    - name: ext-port
+      port: 27018
+      targetPort: 15562
+    - name: int-port
+      port: 15562
+      targetPort: 15562
+  selector:
+    app: shard1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shard2
+  labels:
+    app: shard2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shard2
+  template:
+    metadata:
+      labels:
+        app: shard2
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:latest
+          command:
+            - mongod
+            - --shardsvr
+            - --replSet
+            - shard2ReplSet
+            - --port
+            - "15563"
+            - --bind_ip_all
+          ports:
+            - containerPort: 15563
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shard2
+spec:
+  type: LoadBalancer
+  ports:
+    - name: ext-port
+      port: 27019
+      targetPort: 15563
+    - name: int-port
+      port: 15563
+      targetPort: 15563
+  selector:
+    app: shard2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mydefault
+  labels:
+    app: mydefault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mydefault
+  template:
+    metadata:
+      labels:
+        app: mydefault
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:latest
+          command:
+            - mongod
+            - --shardsvr
+            - --replSet
+            - mydefaultReplSet
+            - --port
+            - "15565"
+            - --bind_ip_all
+          ports:
+            - containerPort: 15565
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mydefault
+spec:
+  type: LoadBalancer
+  ports:
+    - name: ext-port
+      port: 27020
+      targetPort: 15565
+    - name: int-port
+      port: 15565
+      targetPort: 15565
+  selector:
+    app: mydefault
