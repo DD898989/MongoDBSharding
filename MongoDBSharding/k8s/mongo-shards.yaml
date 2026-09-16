@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: myshard1-sts
+spec:
+  serviceName: myshard1-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myshard1-pod
+  template:
+    metadata:
+      labels:
+        app: myshard1-pod
+    spec:
+      containers:
+        - name: mymongo-shard1
+          image: mongo:latest
+          command: [mongod, --shardsvr, --replSet, myshard1ReplSet, --port, "15562", --bind_ip_all]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myshard1-headless
+spec:
+  clusterIP: None
+  ports:
+    - port: 15562
+  selector:
+    app: myshard1-pod
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: myshard2-sts
+spec:
+  serviceName: myshard2-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myshard2-pod
+  template:
+    metadata:
+      labels:
+        app: myshard2-pod
+    spec:
+      containers:
+        - name: mymongo-shard2
+          image: mongo:latest
+          command: [mongod, --shardsvr, --replSet, myshard2ReplSet, --port, "15563", --bind_ip_all]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myshard2-headless
+spec:
+  clusterIP: None
+  ports:
+    - port: 15563
+  selector:
+    app: myshard2-pod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mydefault-deploy
+spec:
+  selector:
+    matchLabels:
+      app: mydefault-pod
+  template:
+    metadata:
+      labels:
+        app: mydefault-pod
+    spec:
+      containers:
+        - name: mymongo-default
+          image: mongo:latest
+          command: [mongod, --shardsvr, --replSet, mydefaultReplSet, --port, "15565", --bind_ip_all]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mydefault-service
+spec:
+  ports:
+    - port: 15565
+  selector:
+    app: mydefault-pod
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myshard1-external
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 27018
+      targetPort: 15562
+  selector:
+    app: myshard1-pod
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myshard2-external
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 27019
+      targetPort: 15563
+  selector:
+    app: myshard2-pod
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mydefault-external
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 27020
+      targetPort: 15565
+  selector:
+    app: mydefault-pod

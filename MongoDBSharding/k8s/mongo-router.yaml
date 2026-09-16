@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mymongos-deploy
+spec:
+  selector:
+    matchLabels:
+      app: mymongos-pod
+  template:
+    metadata:
+      labels:
+        app: mymongos-pod
+    spec:
+      containers:
+        - name: mymongo-router
+          image: mongo:latest
+          command: [mongos, --configdb, myconfigReplSet/myconfigsvr-service:15561, --port, "15564", --bind_ip_all]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mymongos-service
+spec:
+  ports:
+    - port: 15564
+  selector:
+    app: mymongos-pod
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mymongos-external
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 27017
+      targetPort: 15564
+  selector:
+    app: mymongos-pod

@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mywebapi-deploy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mywebapi-pod
+  template:
+    metadata:
+      labels:
+        app: mywebapi-pod
+    spec:
+      initContainers:
+        - name: mywait-for-setup
+          image: busybox:1.36
+          command: ["sh", "-c", "until nc -z mymongos-service 15564; do echo 'Waiting for mongos...'; sleep 2; done"]
+      containers:
+        - name: mywebapi-container
+          image: mywebapi:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mywebapi-service
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8080
+  selector:
+    app: mywebapi-pod

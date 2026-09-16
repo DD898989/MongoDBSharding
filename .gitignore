@@ -1,0 +1,22 @@
+# Build and Publish folders
+bin/
+obj/
+publish/
+out/
+
+# IDE specific files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS specific files
+.DS_Store
+Thumbs.db
+MongoDBSharding/Properties/launchSettings.json
+/MongoDBSharding.LoadTests/reports
+MongoDBSharding/MongoDBSharding.slnx
+/MongoDBSharding/node_modules
+MongoDBSharding/package-lock.json

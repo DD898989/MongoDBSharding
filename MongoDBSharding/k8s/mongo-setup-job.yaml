@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mymongodb-setup-job
+  labels:
+    app: mymongodb-setup-pod
+spec:
+  template:
+    metadata:
+      labels:
+        app: mymongodb-setup-pod
+    spec:
+      containers:
+        - name: mysetup
+          image: mongo:latest
+          command:
+            - bash
+            - -e
+            - -c
+            - |
+              p() { until mongosh --host $1 --port $2 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done; }
+              i() { mongosh --host $1 --port $2 --eval "try { rs.status() } catch(e) { rs.initiate($3) }"; }
+              p myconfigsvr-service 15561
+              i myconfigsvr-service 15561 "{_id:'myconfigReplSet',configsvr:true,members:[{_id:0,host:'myconfigsvr-service:15561'}]}"
+              p myshard1-sts-0.myshard1-headless 15562
+              i myshard1-sts-0.myshard1-headless 15562 "{_id:'myshard1ReplSet',members:[{_id:0,host:'myshard1-sts-0.myshard1-headless:15562'},{_id:1,host:'myshard1-sts-1.myshard1-headless:15562'},{_id:2,host:'myshard1-sts-2.myshard1-headless:15562'}]}"
+              p myshard2-sts-0.myshard2-headless 15563
+              i myshard2-sts-0.myshard2-headless 15563 "{_id:'myshard2ReplSet',members:[{_id:0,host:'myshard2-sts-0.myshard2-headless:15563'},{_id:1,host:'myshard2-sts-1.myshard2-headless:15563'},{_id:2,host:'myshard2-sts-2.myshard2-headless:15563'}]}"
+              p mydefault-service 15565
+              i mydefault-service 15565 "{_id:'mydefaultReplSet',members:[{_id:0,host:'mydefault-service:15565'}]}"
+              p mymongos-service 15564
+              mongosh --host mymongos-service --port 15564 --eval '
+                ["myshard1ReplSet/myshard1-sts-0.myshard1-headless:15562", "myshard2ReplSet/myshard2-sts-0.myshard2-headless:15563", "mydefaultReplSet/mydefault-service:15565"].forEach(s => { try { sh.addShard(s) } catch(e) {} });
+                try { sh.enableSharding("MyShardingDb") } catch(e) {}
+                try { db.getSiblingDB("admin").runCommand({ movePrimary: "MyShardingDb", to: "mydefaultReplSet" }) } catch(e) {}
+                try { sh.addShardToZone("myshard1ReplSet", "my_zone"); sh.addShardToZone("myshard2ReplSet", "my_zone") } catch(e) {}
+              '
+      restartPolicy: OnFailure
