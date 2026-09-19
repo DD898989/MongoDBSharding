@@ -12,7 +12,7 @@ builder.Logging.AddFilter("Microsoft", LogLevel.Critical);
 
 builder.Services.AddOpenApi();
 
-string connectionString = "mongodb://mongos:15564";
+string connectionString = "mongodb://mongos:15564/?readPreference=secondaryPreferred";
 
 var mongoSettings = MongoClientSettings.FromConnectionString(connectionString);
 
@@ -45,23 +45,72 @@ app.MapShardingEndpoints();
 
 var client = app.Services.GetRequiredService<IMongoClient>();
 var adminDb = client.GetDatabase("admin");
-await adminDb.RunCommandAsync<BsonDocument>(new BsonDocument { { "enableSharding", DBName } });
-await adminDb.RunCommandAsync<BsonDocument>(new BsonDocument 
-{ 
-    { "movePrimary", DBName }, 
-    { "to", "mydefaultReplSet" } 
-});
-await adminDb.RunCommandAsync<BsonDocument>(new BsonDocument
+
+while(true)
 {
-    { "shardCollection", $"{DBName}.{nameof(MongoDbContext.Orders)}" },
-    { "key", new BsonDocument { { nameof(Order.OrderId), "hashed" } } }
-});
-await adminDb.RunCommandAsync<BsonDocument>(new BsonDocument
-{
-    { "updateZoneKeyRange", $"{DBName}.{nameof(MongoDbContext.Orders)}" },
-    { "min", new BsonDocument { { nameof(Order.OrderId), BsonMinKey.Value } } },
-    { "max", new BsonDocument { { nameof(Order.OrderId), BsonMaxKey.Value } } },
-    { "zone", "my_zone" }
-});
+    Console.WriteLine("嘗試中...");
+    try
+    {
+        RunAdminCommandIgnoreError(adminDb, 
+            new BsonDocument { { "enableSharding", DBName } }, 
+            "already enabled", "already sharded");
+
+
+        Console.WriteLine("1");
+
+        RunAdminCommandIgnoreError(adminDb, 
+            new BsonDocument 
+            { 
+                { "movePrimary", DBName }, 
+                { "to", "mydefaultReplSet" } 
+            }, 
+            "already", "primary");
+
+        Console.WriteLine("2");
+
+        RunAdminCommandIgnoreError(adminDb, 
+            new BsonDocument
+            {
+                { "shardCollection", $"{DBName}.{nameof(MongoDbContext.Orders)}" },
+                { "key", new BsonDocument { { nameof(Order.OrderId), "hashed" } } }
+            }, 
+            "already sharded");
+
+        Console.WriteLine("3");
+
+        RunAdminCommandIgnoreError(adminDb, 
+            new BsonDocument
+            {
+                { "updateZoneKeyRange", $"{DBName}.{nameof(MongoDbContext.Orders)}" },
+                { "min", new BsonDocument { { nameof(Order.OrderId), BsonMinKey.Value } } },
+                { "max", new BsonDocument { { nameof(Order.OrderId), BsonMaxKey.Value } } },
+                { "zone", "my_zone" }
+            }, 
+            "already exists", "overlapping");
+
+        Console.WriteLine("4");
+
+        break;
+    }
+    catch(Exception ex)
+    {
+        Console.WriteLine($"錯誤: {ex.Message}");
+        await Task.Delay(300);
+    }
+}
 
 app.Run();
+
+static void RunAdminCommandIgnoreError(IMongoDatabase adminDb, BsonDocument command, params string[] ignorableErrors)
+{
+    try
+    {
+        adminDb.RunCommand<BsonDocument>(command);
+    }
+    catch (MongoCommandException ex)
+    {
+        bool ignored = ignorableErrors.Any(err => ex.Message.Contains(err, StringComparison.OrdinalIgnoreCase));
+        if (!ignored)
+            throw;
+    }
+}

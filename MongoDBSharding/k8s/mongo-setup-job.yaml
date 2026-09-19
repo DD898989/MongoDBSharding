@@ -10,60 +10,126 @@ spec:
           image: mongo:latest
           command:
             - bash
+            - -e
             - -c
             - |
-              echo '==== Waiting for MongoDB services to be ready ===='
+              echo '==== Waiting for configsvr to be ready ===='
               until mongosh --host configsvr --port 15561 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               echo '==== Initializing configsvr replica set ===='
               mongosh --host configsvr --port 15561 --eval '
-                rs.initiate({
-                  _id: "configReplSet",
-                  configsvr: true,
-                  members: [{ _id: 0, host: "configsvr:15561" }]
-                });
+                try {
+                  rs.status();
+                  print("configsvr replica set already initialized.");
+                } catch (e) {
+                  print("Initializing configsvr replica set...");
+                  rs.initiate({
+                    _id: "configReplSet",
+                    configsvr: true,
+                    members: [{ _id: 0, host: "configsvr:15561" }]
+                  });
+                }
               '
 
-              until mongosh --host shard1 --port 15562 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
+              echo '==== Waiting for shard1 to be ready ===='
+              until mongosh --host shard1-0.shard1-headless --port 15562 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               echo '==== Initializing shard1 replica set ===='
-              mongosh --host shard1 --port 15562 --eval '
-                rs.initiate({
-                  _id: "shard1ReplSet",
-                  members: [{ _id: 0, host: "shard1:15562" }]
-                });
+              mongosh --host shard1-0.shard1-headless --port 15562 --eval '
+                try {
+                  rs.status();
+                  print("shard1 replica set already initialized.");
+                } catch (e) {
+                  print("Initializing shard1 replica set...");
+                  rs.initiate({
+                    _id: "shard1ReplSet",
+                    members: [{ _id: 0, host: "shard1-0.shard1-headless:15562" }]
+                  });
+                }
               '
 
-              until mongosh --host shard2 --port 15563 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
+              echo '==== Waiting for shard2 to be ready ===='
+              until mongosh --host shard2-0.shard2-headless --port 15563 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               echo '==== Initializing shard2 replica set ===='
-              mongosh --host shard2 --port 15563 --eval '
-                rs.initiate({
-                  _id: "shard2ReplSet",
-                  members: [{ _id: 0, host: "shard2:15563" }]
-                });
+              mongosh --host shard2-0.shard2-headless --port 15563 --eval '
+                try {
+                  rs.status();
+                  print("shard2 replica set already initialized.");
+                } catch (e) {
+                  print("Initializing shard2 replica set...");
+                  rs.initiate({
+                    _id: "shard2ReplSet",
+                    members: [{ _id: 0, host: "shard2-0.shard2-headless:15563" }]
+                  });
+                }
               '
 
+              echo '==== Waiting for mydefault to be ready ===='
               until mongosh --host mydefault --port 15565 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               echo '==== Initializing mydefault replica set ===='
               mongosh --host mydefault --port 15565 --eval '
-                rs.initiate({
-                  _id: "mydefaultReplSet",
-                  members: [{ _id: 0, host: "mydefault:15565" }]
-                });
+                try {
+                  rs.status();
+                  print("mydefault replica set already initialized.");
+                } catch (e) {
+                  print("Initializing mydefault replica set...");
+                  rs.initiate({
+                    _id: "mydefaultReplSet",
+                    members: [{ _id: 0, host: "mydefault:15565" }]
+                  });
+                }
               '
 
+              echo '==== Waiting for mongos to be ready ===='
               until mongosh --host mongos --port 15564 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               echo '==== Adding shards and enabling sharding via mongos ===='
               mongosh --host mongos --port 15564 --eval '
-                sh.addShard("shard1ReplSet/shard1:15562");
-                sh.addShard("shard2ReplSet/shard2:15563");
-                sh.addShard("mydefaultReplSet/mydefault:15565");
+                function addShardSafe(shardConn) {
+                  try {
+                    var res = sh.addShard(shardConn);
+                    print("addShard result for " + shardConn + ": " + JSON.stringify(res));
+                  } catch (e) {
+                    if (!e.message.includes("already")) {
+                      throw e;
+                    }
+                    print("Shard " + shardConn + " already added.");
+                  }
+                }
+                
+                addShardSafe("shard1ReplSet/shard1-0.shard1-headless:15562");
+                addShardSafe("shard2ReplSet/shard2-0.shard2-headless:15563");
+                addShardSafe("mydefaultReplSet/mydefault:15565");
                 
                 db = db.getSiblingDB("ShardingDb");
 
-                sh.enableSharding("ShardingDb");
-                db.getSiblingDB("admin").runCommand({ movePrimary: "ShardingDb", to: "mydefaultReplSet" });
+                try {
+                  var res = sh.enableSharding("ShardingDb");
+                  print("enableSharding result: " + JSON.stringify(res));
+                } catch (e) {
+                  if (!e.message.includes("already")) {
+                    throw e;
+                  }
+                  print("ShardingDb already sharded.");
+                }
+                
+                try {
+                  var res = db.getSiblingDB("admin").runCommand({ movePrimary: "ShardingDb", to: "mydefaultReplSet" });
+                  print("movePrimary result: " + JSON.stringify(res));
+                } catch (e) {
+                  if (!e.message.includes("already")) {
+                    throw e;
+                  }
+                  print("Primary already set to mydefaultReplSet.");
+                }
 
-                sh.addShardToZone("shard1ReplSet", "my_zone");
-                sh.addShardToZone("shard2ReplSet", "my_zone");
+                try {
+                  var res1 = sh.addShardToZone("shard1ReplSet", "my_zone");
+                  var res2 = sh.addShardToZone("shard2ReplSet", "my_zone");
+                  print("addShardToZone results: " + JSON.stringify(res1) + ", " + JSON.stringify(res2));
+                } catch (e) {
+                  if (!e.message.includes("already")) {
+                    throw e;
+                  }
+                  print("Zones already configured.");
+                }
               '
               echo '==== MongoDB Sharding Setup Completed successfully! ===='
       restartPolicy: OnFailure

@@ -1,0 +1,15 @@
+PS C:\Users\DaveVivo> "shard1-0","shard1-1","shard1-2" | % { $p=$_; $d=kubectl exec $p -c mongo -- mongosh --port 15562 --quiet --eval "let x=db.serverStatus().opcounters; print(JSON.stringify({insert:Number(x.insert),query:Number(x.query),update:Number(x.update)}))" | ConvertFrom-Json; [PSCustomObject]@{Pod=$p;Insert=$d.insert;Query=$d.query;Update=$d.update} } | ft -AutoSize; "shard2-0","shard2-1","shard2-2" | % { $p=$_; $d=kubectl exec $p -c mongo -- mongosh --port 15563 --quiet --eval "let x=db.serverStatus().opcounters; print(JSON.stringify({insert:Number(x.insert),query:Number(x.query),update:Number(x.update)}))" | ConvertFrom-Json; [PSCustomObject]@{Pod=$p;Insert=$d.insert;Query=$d.query;Update=$d.update} } | ft -AutoSize
+
+Pod      Insert Query Update
+---      ------ ----- ------
+shard1-0     19   314     47
+shard1-1      1   140      0
+shard1-2     10   142      0
+
+
+
+Pod      Insert Query Update
+---      ------ ----- ------
+shard2-0     19   333     24
+shard2-1      8   181      0
+shard2-2      1   133      0
