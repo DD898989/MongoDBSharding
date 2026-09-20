@@ -231,6 +231,37 @@ namespace MongoDBSharding.Test.Features
             await this.ScenarioCleanupAsync();
         }
         
+        [Xunit.SkippableFactAttribute(DisplayName="3. 驗證 Web API 負載平衡與多個實體間請求均勻分配")]
+        [Xunit.TraitAttribute("FeatureTitle", "MongoDB 讀寫分離與實體分片精準驗證")]
+        [Xunit.TraitAttribute("Description", "3. 驗證 Web API 負載平衡與多個實體間請求均勻分配")]
+        public async System.Threading.Tasks.Task _3_驗證WebAPI負載平衡與多個實體間請求均勻分配()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new System.Collections.Specialized.OrderedDictionary();
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("3. 驗證 Web API 負載平衡與多個實體間請求均勻分配", null, tagsOfScenario, argumentsOfScenario, featureTags);
+#line 44
+  this.ScenarioInitialize(scenarioInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                testRunner.SkipScenario();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 45
+    await testRunner.GivenAsync("系統 Web API 服務已成功部署 2 個實體且均已就緒", ((string)(null)), ((global::Reqnroll.Table)(null)), "假設");
+#line hidden
+#line 46
+    await testRunner.WhenAsync("我呼叫 Web API 測試負載平衡共 100 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "當");
+#line hidden
+#line 47
+    await testRunner.ThenAsync("這些請求應該要大致平均分配給 2 個不同的 Web API 實體", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
         [System.CodeDom.Compiler.GeneratedCodeAttribute("Reqnroll", "2.0.0.0")]
         [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
         public class FixtureData : object, Xunit.IAsyncLifetime

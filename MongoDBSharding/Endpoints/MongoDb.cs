@@ -19,6 +19,8 @@ public static class ShardingApi
         // 1. Sharded database endpoints (Orders) using the unified MongoDbContext
         var shardingGroup = app.MapGroup("/api/sharding");
 
+        shardingGroup.MapGet("/instance", () => Results.Ok(new { InstanceName = Environment.MachineName }));
+
         shardingGroup.MapPost("/order/create", async (MongoDbContext db, [FromBody] CreateOrderRequest? req) =>
         {
             var orderId = (!string.IsNullOrWhiteSpace(req?.OrderId)) ? req.OrderId : Guid.NewGuid().ToString("N").ToUpper();

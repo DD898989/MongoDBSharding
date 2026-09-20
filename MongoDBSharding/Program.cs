@@ -21,6 +21,12 @@ builder.Services.AddSingleton<MongoDbContext>();
 
 var app = builder.Build();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Instance-Name"] = Environment.MachineName;
+    await next();
+});
+
 app.MapOpenApi();
 app.UseSwaggerUI(options =>
 {

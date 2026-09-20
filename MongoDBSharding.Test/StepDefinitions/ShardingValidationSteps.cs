@@ -20,6 +20,7 @@ namespace MongoDBSharding.Test.StepDefinitions
         private Dictionary<string, int> _initialQueryCounters = new();
         private readonly string _testComment = "test-read-replica-sharding-" + Guid.NewGuid().ToString("N");
         private List<string> _activeSecondaries = new();
+        private readonly Dictionary<string, int> _instanceRequestCounts = new();
 
         [BeforeScenario]
         public static void ClearDatabase()
@@ -423,6 +424,71 @@ namespace MongoDBSharding.Test.StepDefinitions
         public void Then與總和應該增加次(string pod1, string pod2, int expectedTotal)
         {
             VerifyPodsQuerySum(pod1, pod2, expectedTotal);
+        }
+
+        [Given(@"系統 Web API 服務已成功部署 2 個實體且均已就緒")]
+        public async Task Given系統WebAPI服務已成功部署個實體且均已就緒()
+        {
+            RunKubectlCommand("rollout status deployment/webapi --timeout=120s");
+            await GivenWebAPI服務已成功啟動且所有MongoDB節點正常運作();
+        }
+
+        [When(@"我呼叫 Web API 測試負載平衡共 (.*) 次")]
+        public async Task When我呼叫WebAPI測試負載平衡共次(int count)
+        {
+            _instanceRequestCounts.Clear();
+            for (int i = 0; i < count; i++)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, "/api/sharding/instance");
+                request.Headers.ConnectionClose = true; // Force new connection to enable load balancing
+
+                var response = await _httpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                string? instanceName = null;
+                if (response.Headers.TryGetValues("X-Instance-Name", out var values))
+                {
+                    instanceName = values.FirstOrDefault();
+                }
+
+                if (string.IsNullOrEmpty(instanceName))
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("instanceName", out var prop))
+                    {
+                        instanceName = prop.GetString();
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(instanceName))
+                {
+                    if (!_instanceRequestCounts.ContainsKey(instanceName))
+                    {
+                        _instanceRequestCounts[instanceName] = 0;
+                    }
+                    _instanceRequestCounts[instanceName]++;
+                }
+            }
+
+            Console.WriteLine("--- Load Balancing Instance Counts ---");
+            foreach (var kvp in _instanceRequestCounts)
+            {
+                Console.WriteLine($"{kvp.Key}: {kvp.Value} requests");
+            }
+        }
+
+        [Then(@"這些請求應該要大致平均分配給 (.*) 個不同的 Web API 實體")]
+        public void Then這些請求應該要大致平均分配給個不同的WebAPI實體(int expectedInstancesCount)
+        {
+            _instanceRequestCounts.Keys.Count.Should().Be(expectedInstancesCount, $"Expected to hit exactly {expectedInstancesCount} different instances");
+
+            int totalRequests = _instanceRequestCounts.Values.Sum();
+            foreach (var kvp in _instanceRequestCounts)
+            {
+                double percentage = (double)kvp.Value / totalRequests * 100;
+                percentage.Should().BeInRange(30, 70, $"Instance {kvp.Key} received {kvp.Value} ({percentage:F1}%) of {totalRequests} requests, which is not roughly balanced (30%-70% required)");
+            }
         }
 
         private void VerifyPodsQuerySum(string pod1, string pod2, int expectedTotal)
