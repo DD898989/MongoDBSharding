@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using MongoDBSharding.Models;
 
 namespace MongoDBSharding.Endpoints;
@@ -53,6 +54,21 @@ public static class ShardingApi
         {
             var results = await db.Orders.Find(_ => true).ToListAsync();
             return Results.Ok(results);
+        });
+
+        shardingGroup.MapGet("/order/get", async (MongoDbContext db, [FromQuery] string orderId, [FromQuery] string? comment) =>
+        {
+            var options = new FindOptions();
+            if (!string.IsNullOrWhiteSpace(comment))
+            {
+                options.Comment = comment;
+            }
+            var result = await db.Orders.Find(o => o.OrderId == orderId, options).FirstOrDefaultAsync();
+            if (result == null)
+            {
+                return Results.NotFound(new { Message = $"Order {orderId} not found." });
+            }
+            return Results.Ok(result);
         });
 
         shardingGroup.MapGet("/order/list-with-country", async (MongoDbContext db) =>
