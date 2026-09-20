@@ -1,29 +1,27 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: configsvr
+  name: myconfigsvr-deploy
 spec:
   selector:
     matchLabels:
-      app: configsvr
+      app: myconfigsvr-pod
   template:
     metadata:
       labels:
-        app: configsvr
+        app: myconfigsvr-pod
     spec:
       containers:
-        - name: mongo
+        - name: mymongo-configsvr
           image: mongo:latest
-          command: [mongod, --configsvr, --replSet, configReplSet, --port, "15561", --bind_ip_all]
-          ports:
-            - containerPort: 15561
+          command: [mongod, --configsvr, --replSet, myconfigReplSet, --port, "15561", --bind_ip_all]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: configsvr
+  name: myconfigsvr-service
 spec:
   ports:
     - port: 15561
   selector:
-    app: configsvr
+    app: myconfigsvr-pod

@@ -5,11 +5,11 @@ using MongoDBSharding.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-const string DBName = "ShardingDb";
+const string DBName = "MyShardingDb";
 
 builder.Services.AddOpenApi();
 
-string connectionString = "mongodb://mongos:15564/?readPreference=secondaryPreferred";
+string connectionString = "mongodb://mymongos-service:15564/?readPreference=secondaryPreferred";
 
 var mongoSettings = MongoClientSettings.FromConnectionString(connectionString);
 

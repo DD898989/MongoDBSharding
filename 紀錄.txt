@@ -1,0 +1,53 @@
+PS C:\Users\DaveVivo> $c = kubectl config current-context; (kubectl get pods -A -o json | ConvertFrom-Json).items | % { $p = $_; $p.spec.containers | % { [pscustomobject]@{Cluster=$c; Node=$p.spec.nodeName; Namespace=$p.metadata.namespace; Pod=$p.metadata.name; Container=$_.name} } } | Sort-Object Node,Namespace,Pod | Format-Table -AutoSize
+
+Cluster        Node           Namespace   Pod                                    Container
+-------        ----           ---------   ---                                    ---------
+docker-desktop docker-desktop default     myconfigsvr-deploy-7d8b6869c-8khg9     mymongo-configsvr
+docker-desktop docker-desktop default     mydefault-deploy-789d5dc5b-fgtr2       mymongo-default
+docker-desktop docker-desktop default     mymongodb-setup-job-vbj49              mysetup
+docker-desktop docker-desktop default     mymongos-deploy-68bdc99997-rthzd       mymongo-router
+docker-desktop docker-desktop default     myshard1-sts-0                         mymongo-shard1
+docker-desktop docker-desktop default     myshard1-sts-1                         mymongo-shard1
+docker-desktop docker-desktop default     myshard1-sts-2                         mymongo-shard1
+docker-desktop docker-desktop default     myshard2-sts-0                         mymongo-shard2
+docker-desktop docker-desktop default     myshard2-sts-1                         mymongo-shard2
+docker-desktop docker-desktop default     myshard2-sts-2                         mymongo-shard2
+docker-desktop docker-desktop default     mywebapi-deploy-7ff89999f4-pljs6       mywebapi-container
+docker-desktop docker-desktop default     mywebapi-deploy-7ff89999f4-tnzz8       mywebapi-container
+docker-desktop docker-desktop kube-system coredns-5dd5756b68-h7mvr               coredns
+docker-desktop docker-desktop kube-system coredns-5dd5756b68-pfcv9               coredns
+docker-desktop docker-desktop kube-system etcd-docker-desktop                    etcd
+docker-desktop docker-desktop kube-system kube-apiserver-docker-desktop          kube-apiserver
+docker-desktop docker-desktop kube-system kube-controller-manager-docker-desktop kube-controller-manager
+docker-desktop docker-desktop kube-system kube-proxy-tp6cf                       kube-proxy
+docker-desktop docker-desktop kube-system kube-scheduler-docker-desktop          kube-scheduler
+docker-desktop docker-desktop kube-system storage-provisioner                    storage-provisioner
+docker-desktop docker-desktop kube-system vpnkit-controller                      vpnkit-controller
+
+
+
+PS C:\Users\DaveVivo> $c = kubectl config current-context; (kubectl get pods -A -o json | ConvertFrom-Json).items | % { $p = $_; $o = $p.metadata.ownerReferences | select -First 1; $k = if($o){$o.kind}else{'Pod'}; $n = if($o){$o.name}else{$p.metadata.name}; if($k -eq 'ReplicaSet'){ $k='Deployment'; $n = $n -replace '-[a-z0-9]+$','' }; $p.spec.containers | % { [pscustomobject]@{Cluster=$c; Namespace=$p.metadata.namespace; Workload="$k/$n"; Pod=$p.metadata.name; Container=$_.name} } } | Sort-Object Namespace,Workload,Pod | Format-Table -AutoSize
+
+Cluster        Namespace   Workload                      Pod                                    Container
+-------        ---------   --------                      ---                                    ---------
+docker-desktop default     Deployment/myconfigsvr-deploy myconfigsvr-deploy-7d8b6869c-8khg9     mymongo-configsvr
+docker-desktop default     Deployment/mydefault-deploy   mydefault-deploy-789d5dc5b-fgtr2       mymongo-default
+docker-desktop default     Deployment/mymongos-deploy    mymongos-deploy-68bdc99997-rthzd       mymongo-router
+docker-desktop default     Deployment/mywebapi-deploy    mywebapi-deploy-7ff89999f4-pljs6       mywebapi-container
+docker-desktop default     Deployment/mywebapi-deploy    mywebapi-deploy-7ff89999f4-tnzz8       mywebapi-container
+docker-desktop default     Job/mymongodb-setup-job       mymongodb-setup-job-vbj49              mysetup
+docker-desktop default     StatefulSet/myshard1-sts      myshard1-sts-0                         mymongo-shard1
+docker-desktop default     StatefulSet/myshard1-sts      myshard1-sts-1                         mymongo-shard1
+docker-desktop default     StatefulSet/myshard1-sts      myshard1-sts-2                         mymongo-shard1
+docker-desktop default     StatefulSet/myshard2-sts      myshard2-sts-0                         mymongo-shard2
+docker-desktop default     StatefulSet/myshard2-sts      myshard2-sts-1                         mymongo-shard2
+docker-desktop default     StatefulSet/myshard2-sts      myshard2-sts-2                         mymongo-shard2
+docker-desktop kube-system DaemonSet/kube-proxy          kube-proxy-tp6cf                       kube-proxy
+docker-desktop kube-system Deployment/coredns            coredns-5dd5756b68-h7mvr               coredns
+docker-desktop kube-system Deployment/coredns            coredns-5dd5756b68-pfcv9               coredns
+docker-desktop kube-system Node/docker-desktop           etcd-docker-desktop                    etcd
+docker-desktop kube-system Node/docker-desktop           kube-apiserver-docker-desktop          kube-apiserver
+docker-desktop kube-system Node/docker-desktop           kube-controller-manager-docker-desktop kube-controller-manager
+docker-desktop kube-system Node/docker-desktop           kube-scheduler-docker-desktop          kube-scheduler
+docker-desktop kube-system Pod/storage-provisioner       storage-provisioner                    storage-provisioner
+docker-desktop kube-system Pod/vpnkit-controller         vpnkit-controller                      vpnkit-controller

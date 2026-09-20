@@ -94,14 +94,21 @@ namespace MongoDBSharding.Test.Features
             await this.TestTearDownAsync();
         }
         
-        [Xunit.SkippableFactAttribute(DisplayName="1. 驗證國家資料僅存在於預設分片而訂單資料均勻分佈於分片一與分片二")]
+        [Xunit.SkippableTheoryAttribute(DisplayName="1. 驗證外部公開埠口連線 (External Port Accessibility)")]
         [Xunit.TraitAttribute("FeatureTitle", "MongoDB 讀寫分離與實體分片精準驗證")]
-        [Xunit.TraitAttribute("Description", "1. 驗證國家資料僅存在於預設分片而訂單資料均勻分佈於分片一與分片二")]
-        public async System.Threading.Tasks.Task _1_驗證國家資料僅存在於預設分片而訂單資料均勻分佈於分片一與分片二()
+        [Xunit.TraitAttribute("Description", "1. 驗證外部公開埠口連線 (External Port Accessibility)")]
+        [Xunit.InlineDataAttribute("27017", "外部 mymongos 路由服務埠", new string[0])]
+        [Xunit.InlineDataAttribute("27018", "外部 myshard1 分片服務埠", new string[0])]
+        [Xunit.InlineDataAttribute("27019", "外部 myshard2 分片服務埠", new string[0])]
+        [Xunit.InlineDataAttribute("27020", "外部 Default Shard 服務埠", new string[0])]
+        [Xunit.InlineDataAttribute("8080", "mywebapi 外部存取服務埠", new string[0])]
+        public async System.Threading.Tasks.Task _1_驗證外部公開埠口連線ExternalPortAccessibility(string port, string description, string[] exampleTags)
         {
-            string[] tagsOfScenario = ((string[])(null));
+            string[] tagsOfScenario = exampleTags;
             System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new System.Collections.Specialized.OrderedDictionary();
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("1. 驗證國家資料僅存在於預設分片而訂單資料均勻分佈於分片一與分片二", null, tagsOfScenario, argumentsOfScenario, featureTags);
+            argumentsOfScenario.Add("port", port);
+            argumentsOfScenario.Add("description", description);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("1. 驗證外部公開埠口連線 (External Port Accessibility)", null, tagsOfScenario, argumentsOfScenario, featureTags);
 #line 8
   this.ScenarioInitialize(scenarioInfo);
 #line hidden
@@ -115,76 +122,33 @@ namespace MongoDBSharding.Test.Features
 #line 9
     await testRunner.GivenAsync("系統 Web API 服務已成功啟動且各個實體分片皆可連線", ((string)(null)), ((global::Reqnroll.Table)(null)), "假設");
 #line hidden
-                global::Reqnroll.Table table1 = new global::Reqnroll.Table(new string[] {
-                            "Name",
-                            "Code"});
-                table1.AddRow(new string[] {
-                            "台灣",
-                            "TW"});
-                table1.AddRow(new string[] {
-                            "日本",
-                            "JP"});
 #line 10
-    await testRunner.WhenAsync("我呼叫建立國家 API 建立以下 2 個國家:", ((string)(null)), table1, "當");
+    await testRunner.WhenAsync(string.Format("外部客戶端嘗試對外網 IP 的 Port \"{0}\" 進行連線", port), ((string)(null)), ((global::Reqnroll.Table)(null)), "當");
 #line hidden
-#line 14
-    await testRunner.ThenAsync("我直接連線預設分片 \"mydefault\" 查詢，應該要在 \"MyCountry\" 集合中找到剛好 2 筆國家資料", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
-#line hidden
-#line 15
-    await testRunner.AndAsync("我直接連線 \"shard1\" 與 \"shard2\" 查詢，在 \"MyCountry\" 集合中不應該存有任何資料", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-                global::Reqnroll.Table table2 = new global::Reqnroll.Table(new string[] {
-                            "OrderId",
-                            "CustomerName",
-                            "Amount"});
-                table2.AddRow(new string[] {
-                            "ORDER_ID_03",
-                            "Guest_D",
-                            "90.0"});
-                table2.AddRow(new string[] {
-                            "ORDER_ID_05",
-                            "Guest_E",
-                            "150.7"});
-#line 17
-    await testRunner.WhenAsync("我呼叫建立訂單 API 並指定以下 2 個特定的訂單編號:", ((string)(null)), table2, "當");
-#line hidden
-#line 21
-    await testRunner.ThenAsync("我直接連線 \"mydefault\" 查詢，不應該存在訂單 \"ORDER_ID_03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
-#line hidden
-#line 22
-    await testRunner.AndAsync("我直接連線 \"mydefault\" 查詢，不應該存在訂單 \"ORDER_ID_05\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-#line 23
-    await testRunner.AndAsync("我直接連線 \"shard1\" 查詢，應該存在訂單 \"ORDER_ID_03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-#line 24
-    await testRunner.AndAsync("我直接連線 \"shard1\" 查詢，不應該存在訂單 \"ORDER_ID_05\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-#line 25
-    await testRunner.AndAsync("我直接連線 \"shard2\" 查詢，應該存在訂單 \"ORDER_ID_05\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-#line 26
-    await testRunner.AndAsync("我直接連線 \"shard2\" 查詢，不應該存在訂單 \"ORDER_ID_03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-#line 27
-    await testRunner.AndAsync("我直接連線 \"27017\" 查詢，應該存在訂單 \"ORDER_ID_03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-#line 28
-    await testRunner.AndAsync("我直接連線 \"27017\" 查詢，應該存在訂單 \"ORDER_ID_05\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line 11
+    await testRunner.ThenAsync("連線應該要成功建立", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
         }
         
-        [Xunit.SkippableFactAttribute(DisplayName="2. 驗證多次特定 OrderId 查詢時流量均勻路由至對應 Shard 的唯讀副本 (Secondary)")]
+        [Xunit.SkippableTheoryAttribute(DisplayName="2. 驗證內部專用埠口隔離 (Internal Port Isolation)")]
         [Xunit.TraitAttribute("FeatureTitle", "MongoDB 讀寫分離與實體分片精準驗證")]
-        [Xunit.TraitAttribute("Description", "2. 驗證多次特定 OrderId 查詢時流量均勻路由至對應 Shard 的唯讀副本 (Secondary)")]
-        public async System.Threading.Tasks.Task _2_驗證多次特定OrderId查詢時流量均勻路由至對應Shard的唯讀副本Secondary()
+        [Xunit.TraitAttribute("Description", "2. 驗證內部專用埠口隔離 (Internal Port Isolation)")]
+        [Xunit.InlineDataAttribute("15562", "內部 myshard1 分片服務埠", new string[0])]
+        [Xunit.InlineDataAttribute("15563", "內部 myshard2 分片服務埠", new string[0])]
+        [Xunit.InlineDataAttribute("15564", "內部 mymongos 路由服務埠", new string[0])]
+        [Xunit.InlineDataAttribute("15565", "內部 Default Shard 服務埠", new string[0])]
+        [Xunit.InlineDataAttribute("15566", "內部保留專用埠 5", new string[0])]
+        [Xunit.InlineDataAttribute("15567", "內部保留專用埠 6", new string[0])]
+        public async System.Threading.Tasks.Task _2_驗證內部專用埠口隔離InternalPortIsolation(string port, string description, string[] exampleTags)
         {
-            string[] tagsOfScenario = ((string[])(null));
+            string[] tagsOfScenario = exampleTags;
             System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new System.Collections.Specialized.OrderedDictionary();
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("2. 驗證多次特定 OrderId 查詢時流量均勻路由至對應 Shard 的唯讀副本 (Secondary)", null, tagsOfScenario, argumentsOfScenario, featureTags);
-#line 30
+            argumentsOfScenario.Add("port", port);
+            argumentsOfScenario.Add("description", description);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("2. 驗證內部專用埠口隔離 (Internal Port Isolation)", null, tagsOfScenario, argumentsOfScenario, featureTags);
+#line 21
   this.ScenarioInitialize(scenarioInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -194,38 +158,14 @@ namespace MongoDBSharding.Test.Features
             else
             {
                 await this.ScenarioStartAsync();
-#line 31
+#line 22
     await testRunner.GivenAsync("系統 Web API 服務已成功啟動且各個實體分片皆可連線", ((string)(null)), ((global::Reqnroll.Table)(null)), "假設");
 #line hidden
-                global::Reqnroll.Table table3 = new global::Reqnroll.Table(new string[] {
-                            "Name",
-                            "Code"});
-                table3.AddRow(new string[] {
-                            "台灣",
-                            "TW"});
-#line 32
-    await testRunner.WhenAsync("我呼叫建立國家 API 建立以下 1 個國家:", ((string)(null)), table3, "當");
+#line 23
+    await testRunner.WhenAsync(string.Format("外部客戶端嘗試對外網 IP 的 Port \"{0}\" 進行連線", port), ((string)(null)), ((global::Reqnroll.Table)(null)), "當");
 #line hidden
-                global::Reqnroll.Table table4 = new global::Reqnroll.Table(new string[] {
-                            "OrderId"});
-                table4.AddRow(new string[] {
-                            "ORDER_ID_03"});
-                table4.AddRow(new string[] {
-                            "ORDER_ID_05"});
-#line 35
-    await testRunner.AndAsync("我呼叫建立訂單 API 並指定以下 2 個特定的訂單編號:", ((string)(null)), table4, "而且");
-#line hidden
-#line 39
-    await testRunner.AndAsync("我記錄所有分片唯讀副本（\"shard1-1\", \"shard1-2\", \"shard2-1\", \"shard2-2\"）的初始查詢計數器", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-#line 40
-    await testRunner.AndAsync("我使用特定 OrderId 查詢訂單 33 次，其中 \"ORDER_ID_03\" 查詢 11 次，\"ORDER_ID_05\" 查詢 22 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
-#line hidden
-#line 41
-    await testRunner.ThenAsync("我再次讀取所有分片唯讀副本的查詢次數，\"shard1-1\" 與 \"shard1-2\" 總和應該增加 11 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
-#line hidden
-#line 42
-    await testRunner.AndAsync("\"shard2-1\" 與 \"shard2-2\" 總和應該增加 22 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line 24
+    await testRunner.ThenAsync("連線應被拒絕 (Refused) 或超時 (Timeout)", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -239,7 +179,7 @@ namespace MongoDBSharding.Test.Features
             string[] tagsOfScenario = ((string[])(null));
             System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new System.Collections.Specialized.OrderedDictionary();
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("3. 驗證 Web API 負載平衡與多個實體間請求均勻分配", null, tagsOfScenario, argumentsOfScenario, featureTags);
-#line 44
+#line 35
   this.ScenarioInitialize(scenarioInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -249,14 +189,152 @@ namespace MongoDBSharding.Test.Features
             else
             {
                 await this.ScenarioStartAsync();
-#line 45
+#line 36
     await testRunner.GivenAsync("系統 Web API 服務已成功部署 2 個實體且均已就緒", ((string)(null)), ((global::Reqnroll.Table)(null)), "假設");
 #line hidden
-#line 46
+#line 37
     await testRunner.WhenAsync("我呼叫 Web API 測試負載平衡共 100 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "當");
 #line hidden
-#line 47
+#line 38
     await testRunner.ThenAsync("這些請求應該要大致平均分配給 2 個不同的 Web API 實體", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [Xunit.SkippableFactAttribute(DisplayName="4. 驗證國家資料僅存在於預設分片而訂單資料均勻分佈於分片一與分片二")]
+        [Xunit.TraitAttribute("FeatureTitle", "MongoDB 讀寫分離與實體分片精準驗證")]
+        [Xunit.TraitAttribute("Description", "4. 驗證國家資料僅存在於預設分片而訂單資料均勻分佈於分片一與分片二")]
+        public async System.Threading.Tasks.Task _4_驗證國家資料僅存在於預設分片而訂單資料均勻分佈於分片一與分片二()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new System.Collections.Specialized.OrderedDictionary();
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("4. 驗證國家資料僅存在於預設分片而訂單資料均勻分佈於分片一與分片二", null, tagsOfScenario, argumentsOfScenario, featureTags);
+#line 40
+  this.ScenarioInitialize(scenarioInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                testRunner.SkipScenario();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 41
+    await testRunner.GivenAsync("系統 Web API 服務已成功啟動且各個實體分片皆可連線", ((string)(null)), ((global::Reqnroll.Table)(null)), "假設");
+#line hidden
+                global::Reqnroll.Table table1 = new global::Reqnroll.Table(new string[] {
+                            "Name",
+                            "Code"});
+                table1.AddRow(new string[] {
+                            "台灣",
+                            "TW"});
+                table1.AddRow(new string[] {
+                            "日本",
+                            "JP"});
+#line 42
+    await testRunner.WhenAsync("我呼叫建立國家 API 建立以下 2 個國家:", ((string)(null)), table1, "當");
+#line hidden
+#line 46
+    await testRunner.ThenAsync("我直接連線預設分片 \"mydefault\" 查詢，應該要在 \"MyCountry\" 集合中找到剛好 2 筆國家資料", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
+#line hidden
+#line 47
+    await testRunner.AndAsync("我直接連線 \"myshard1\" 與 \"myshard2\" 查詢，在 \"MyCountry\" 集合中不應該存有任何資料", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+                global::Reqnroll.Table table2 = new global::Reqnroll.Table(new string[] {
+                            "OrderId",
+                            "CustomerName",
+                            "Amount"});
+                table2.AddRow(new string[] {
+                            "ORDER_ID_03",
+                            "Guest_D",
+                            "90.0"});
+                table2.AddRow(new string[] {
+                            "ORDER_ID_05",
+                            "Guest_E",
+                            "150.7"});
+#line 49
+    await testRunner.WhenAsync("我呼叫建立訂單 API 並指定以下 2 個特定的訂單編號:", ((string)(null)), table2, "當");
+#line hidden
+#line 53
+    await testRunner.ThenAsync("我直接連線 \"mydefault\" 查詢，不應該存在訂單 \"ORDER_ID_03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
+#line hidden
+#line 54
+    await testRunner.AndAsync("我直接連線 \"mydefault\" 查詢，不應該存在訂單 \"ORDER_ID_05\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+#line 55
+    await testRunner.AndAsync("我直接連線 \"myshard1\" 查詢，應該存在訂單 \"ORDER_ID_03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+#line 56
+    await testRunner.AndAsync("我直接連線 \"myshard1\" 查詢，不應該存在訂單 \"ORDER_ID_05\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+#line 57
+    await testRunner.AndAsync("我直接連線 \"myshard2\" 查詢，應該存在訂單 \"ORDER_ID_05\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+#line 58
+    await testRunner.AndAsync("我直接連線 \"myshard2\" 查詢，不應該存在訂單 \"ORDER_ID_03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+#line 59
+    await testRunner.AndAsync("我直接連線 \"27017\" 查詢，應該存在訂單 \"ORDER_ID_03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+#line 60
+    await testRunner.AndAsync("我直接連線 \"27017\" 查詢，應該存在訂單 \"ORDER_ID_05\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [Xunit.SkippableFactAttribute(DisplayName="5. 驗證多次特定 OrderId 查詢時流量均勻路由至對應 Shard 的唯讀副本 (Secondary)")]
+        [Xunit.TraitAttribute("FeatureTitle", "MongoDB 讀寫分離與實體分片精準驗證")]
+        [Xunit.TraitAttribute("Description", "5. 驗證多次特定 OrderId 查詢時流量均勻路由至對應 Shard 的唯讀副本 (Secondary)")]
+        public async System.Threading.Tasks.Task _5_驗證多次特定OrderId查詢時流量均勻路由至對應Shard的唯讀副本Secondary()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new System.Collections.Specialized.OrderedDictionary();
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("5. 驗證多次特定 OrderId 查詢時流量均勻路由至對應 Shard 的唯讀副本 (Secondary)", null, tagsOfScenario, argumentsOfScenario, featureTags);
+#line 62
+  this.ScenarioInitialize(scenarioInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                testRunner.SkipScenario();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 63
+    await testRunner.GivenAsync("系統 Web API 服務已成功啟動且各個實體分片皆可連線", ((string)(null)), ((global::Reqnroll.Table)(null)), "假設");
+#line hidden
+                global::Reqnroll.Table table3 = new global::Reqnroll.Table(new string[] {
+                            "Name",
+                            "Code"});
+                table3.AddRow(new string[] {
+                            "台灣",
+                            "TW"});
+#line 64
+    await testRunner.WhenAsync("我呼叫建立國家 API 建立以下 1 個國家:", ((string)(null)), table3, "當");
+#line hidden
+                global::Reqnroll.Table table4 = new global::Reqnroll.Table(new string[] {
+                            "OrderId"});
+                table4.AddRow(new string[] {
+                            "ORDER_ID_03"});
+                table4.AddRow(new string[] {
+                            "ORDER_ID_05"});
+#line 67
+    await testRunner.AndAsync("我呼叫建立訂單 API 並指定以下 2 個特定的訂單編號:", ((string)(null)), table4, "而且");
+#line hidden
+#line 71
+    await testRunner.AndAsync(("我記錄所有分片唯讀副本（\"myshard1-sts-1\", \"myshard1-sts-2\", \"myshard2-sts-1\", \"myshard2-sts-2" +
+                        "\"）的初始查詢計數器"), ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+#line 72
+    await testRunner.AndAsync("我使用特定 OrderId 查詢訂單 33 次，其中 \"ORDER_ID_03\" 查詢 11 次，\"ORDER_ID_05\" 查詢 22 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
+#line hidden
+#line 73
+    await testRunner.ThenAsync("我再次讀取所有分片唯讀副本的查詢次數，\"myshard1-sts-1\" 與 \"myshard1-sts-2\" 總和應該增加 11 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
+#line hidden
+#line 74
+    await testRunner.AndAsync("\"myshard2-sts-1\" 與 \"myshard2-sts-2\" 總和應該增加 22 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

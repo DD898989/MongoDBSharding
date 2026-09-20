@@ -21,6 +21,7 @@ namespace MongoDBSharding.Test.StepDefinitions
         private readonly string _testComment = "test-read-replica-sharding-" + Guid.NewGuid().ToString("N");
         private List<string> _activeSecondaries = new();
         private readonly Dictionary<string, int> _instanceRequestCounts = new();
+        private bool _lastConnectionSuccessful;
 
         [BeforeScenario]
         public static void ClearDatabase()
@@ -28,8 +29,8 @@ namespace MongoDBSharding.Test.StepDefinitions
             try
             {
                 // Clear MyCountry and Orders collections from the mongos router (port 15564)
-                RunKubectlCommand("exec deployment/mongos -c mongo -- mongosh --port 15564 --quiet --eval \"db.getSiblingDB('ShardingDb').MyCountry.deleteMany({}); db.getSiblingDB('ShardingDb').Orders.deleteMany({});\"");
-                Console.WriteLine("[BeforeScenario] Successfully cleared ShardingDb collections.");
+                RunKubectlCommand("exec deployment/mymongos-deploy -c mymongo-router -- mongosh --port 15564 --quiet --eval \"db.getSiblingDB('MyShardingDb').MyCountry.deleteMany({}); db.getSiblingDB('MyShardingDb').Orders.deleteMany({});\"");
+                Console.WriteLine("[BeforeScenario] Successfully cleared MyShardingDb collections.");
             }
             catch (Exception ex)
             {
@@ -92,15 +93,15 @@ namespace MongoDBSharding.Test.StepDefinitions
         [Then(@"預設分片 ""(.*)"" 應該要存有 ""(.*)"" 筆國家資料")]
         public void Then預設分片應該要存有筆國家資料(string target, int expectedCount)
         {
-            int actualCount = GetCollectionCount("deployment/mydefault", 15565, "MyCountry");
+            int actualCount = GetCollectionCount("deployment/mydefault-deploy", 15565, "MyCountry");
             actualCount.Should().Be(expectedCount, $"Expected mydefault to contain exactly {expectedCount} country documents");
         }
 
         [Then(@"雜湊分片 ""(.*)"" 與 ""(.*)"" 應該存有 ""(.*)"" 筆國家資料")]
         public void Then雜湊分片與應該存有筆國家資料(string shard1, string shard2, int expectedCount)
         {
-            int shard1Count = GetCollectionCount("statefulset/shard1", 15562, "MyCountry");
-            int shard2Count = GetCollectionCount("statefulset/shard2", 15563, "MyCountry");
+            int shard1Count = GetCollectionCount("statefulset/myshard1-sts", 15562, "MyCountry");
+            int shard2Count = GetCollectionCount("statefulset/myshard2-sts", 15563, "MyCountry");
 
             shard1Count.Should().Be(expectedCount, $"Expected {shard1} to contain {expectedCount} country documents");
             shard2Count.Should().Be(expectedCount, $"Expected {shard2} to contain {expectedCount} country documents");
@@ -123,15 +124,15 @@ namespace MongoDBSharding.Test.StepDefinitions
         [Then(@"預設分片 ""(.*)"" 應該存有 ""(.*)"" 筆訂單資料")]
         public void Then預設分片應該存有筆訂單資料(string target, int expectedCount)
         {
-            int actualCount = GetCollectionCount("deployment/mydefault", 15565, "Orders");
+            int actualCount = GetCollectionCount("deployment/mydefault-deploy", 15565, "Orders");
             actualCount.Should().Be(expectedCount, $"Expected mydefault to contain {expectedCount} orders because Orders are sharded in my_zone");
         }
 
         [Then(@"雜湊分片 ""(.*)"" 與 ""(.*)"" 中的訂單資料總和必須等於 ""(.*)""")]
         public void Then雜湊分片與中的訂單資料總和必須等於(string shard1, string shard2, int expectedTotal)
         {
-            int shard1Count = GetCollectionCount("statefulset/shard1", 15562, "Orders");
-            int shard2Count = GetCollectionCount("statefulset/shard2", 15563, "Orders");
+            int shard1Count = GetCollectionCount("statefulset/myshard1-sts", 15562, "Orders");
+            int shard2Count = GetCollectionCount("statefulset/myshard2-sts", 15563, "Orders");
 
             int actualTotal = shard1Count + shard2Count;
             actualTotal.Should().Be(expectedTotal, $"Expected total sharded orders to be {expectedTotal}, but found {shard1Count} in shard1 and {shard2Count} in shard2");
@@ -140,8 +141,8 @@ namespace MongoDBSharding.Test.StepDefinitions
         [Then(@"""(.*)"" 與 ""(.*)"" 兩者都必須存有至少 ""(.*)"" 筆以上的訂單資料")]
         public void Then與兩者都必須存有至少筆以上的訂單資料(string shard1, string shard2, int expectedMin)
         {
-            int shard1Count = GetCollectionCount("statefulset/shard1", 15562, "Orders");
-            int shard2Count = GetCollectionCount("statefulset/shard2", 15563, "Orders");
+            int shard1Count = GetCollectionCount("statefulset/myshard1-sts", 15562, "Orders");
+            int shard2Count = GetCollectionCount("statefulset/myshard2-sts", 15563, "Orders");
 
             shard1Count.Should().BeGreaterThanOrEqualTo(expectedMin, $"{shard1} should have received hashed order documents");
             shard2Count.Should().BeGreaterThanOrEqualTo(expectedMin, $"{shard2} should have received hashed order documents");
@@ -236,15 +237,15 @@ namespace MongoDBSharding.Test.StepDefinitions
         [Then(@"我直接連線預設分片 ""(.*)"" 查詢，應該要在 ""(.*)"" 集合中找到剛好 (.*) 筆國家資料")]
         public void Then我直接連線預設分片查詢應該要在集合中找到剛好筆國家資料(string target, string collectionName, int expectedCount)
         {
-            int actualCount = GetCollectionCount("deployment/mydefault", 15565, collectionName);
+            int actualCount = GetCollectionCount("deployment/mydefault-deploy", 15565, collectionName);
             actualCount.Should().Be(expectedCount, $"Expected mydefault to contain exactly {expectedCount} {collectionName} documents");
         }
 
         [Then(@"我直接連線 ""(.*)"" 與 ""(.*)"" 查詢，在 ""(.*)"" 集合中不應該存有任何資料")]
         public void Then我直接連線與查詢在集合中不應該存有任何資料(string shard1, string shard2, string collectionName)
         {
-            int shard1Count = GetCollectionCount("statefulset/shard1", 15562, collectionName);
-            int shard2Count = GetCollectionCount("statefulset/shard2", 15563, collectionName);
+            int shard1Count = GetCollectionCount("statefulset/myshard1-sts", 15562, collectionName);
+            int shard2Count = GetCollectionCount("statefulset/myshard2-sts", 15563, collectionName);
 
             shard1Count.Should().Be(0, $"Expected {shard1} to contain 0 {collectionName} documents");
             shard2Count.Should().Be(0, $"Expected {shard2} to contain 0 {collectionName} documents");
@@ -267,15 +268,15 @@ namespace MongoDBSharding.Test.StepDefinitions
         [Then(@"我直接連線預設分片 ""(.*)"" 查詢，在 ""(.*)"" 集合中不應該存有任何資料")]
         public void Then我直接連線預設分片查詢在集合中不應該存有任何資料(string target, string collectionName)
         {
-            int actualCount = GetCollectionCount("deployment/mydefault", 15565, collectionName);
+            int actualCount = GetCollectionCount("deployment/mydefault-deploy", 15565, collectionName);
             actualCount.Should().Be(0, $"Expected {target} to contain 0 {collectionName} documents");
         }
 
         [Then(@"我直接連線 ""(.*)"" 與 ""(.*)"" 查詢，兩邊的 ""(.*)"" 集合中資料數量相加必須剛好為 (.*)")]
         public void Then我直接連線與查詢兩邊的集合中資料數量相加必須剛好為(string shard1, string shard2, string collectionName, int expectedTotal)
         {
-            int shard1Count = GetCollectionCount("statefulset/shard1", 15562, collectionName);
-            int shard2Count = GetCollectionCount("statefulset/shard2", 15563, collectionName);
+            int shard1Count = GetCollectionCount("statefulset/myshard1-sts", 15562, collectionName);
+            int shard2Count = GetCollectionCount("statefulset/myshard2-sts", 15563, collectionName);
 
             int actualTotal = shard1Count + shard2Count;
             actualTotal.Should().Be(expectedTotal, $"Expected total sharded orders to be {expectedTotal}, but found {shard1Count} in {shard1} and {shard2Count} in {shard2}");
@@ -287,24 +288,24 @@ namespace MongoDBSharding.Test.StepDefinitions
             string target;
             int port;
 
-            if (targetName == "shard1")
+            if (targetName == "myshard1")
             {
-                target = "statefulset/shard1";
+                target = "statefulset/myshard1-sts";
                 port = 15562;
             }
-            else if (targetName == "shard2")
+            else if (targetName == "myshard2")
             {
-                target = "statefulset/shard2";
+                target = "statefulset/myshard2-sts";
                 port = 15563;
             }
             else if (targetName == "mydefault")
             {
-                target = "deployment/mydefault";
+                target = "deployment/mydefault-deploy";
                 port = 15565;
             }
             else if (targetName == "27017")
             {
-                target = "deployment/mongos";
+                target = "deployment/mymongos-deploy";
                 port = 15564;
             }
             else
@@ -312,7 +313,8 @@ namespace MongoDBSharding.Test.StepDefinitions
                 throw new ArgumentException($"Unknown query target: {targetName}");
             }
 
-            string output = RunKubectlCommand($"exec {target} -c mongo -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('ShardingDb').Orders.countDocuments({{ OrderId: '{orderId}' }})\"");
+            string container = GetContainerName(target);
+            string output = RunKubectlCommand($"exec {target} -c {container} -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('MyShardingDb').Orders.countDocuments({{ OrderId: '{orderId}' }})\"");
             string[] lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             int count = 0;
             foreach (var line in lines)
@@ -332,24 +334,24 @@ namespace MongoDBSharding.Test.StepDefinitions
             string target;
             int port;
 
-            if (targetName == "shard1")
+            if (targetName == "myshard1")
             {
-                target = "statefulset/shard1";
+                target = "statefulset/myshard1-sts";
                 port = 15562;
             }
-            else if (targetName == "shard2")
+            else if (targetName == "myshard2")
             {
-                target = "statefulset/shard2";
+                target = "statefulset/myshard2-sts";
                 port = 15563;
             }
             else if (targetName == "mydefault")
             {
-                target = "deployment/mydefault";
+                target = "deployment/mydefault-deploy";
                 port = 15565;
             }
             else if (targetName == "27017")
             {
-                target = "deployment/mongos";
+                target = "deployment/mymongos-deploy";
                 port = 15564;
             }
             else
@@ -357,7 +359,8 @@ namespace MongoDBSharding.Test.StepDefinitions
                 throw new ArgumentException($"Unknown query target: {targetName}");
             }
 
-            string output = RunKubectlCommand($"exec {target} -c mongo -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('ShardingDb').Orders.countDocuments({{ OrderId: '{orderId}' }})\"");
+            string container = GetContainerName(target);
+            string output = RunKubectlCommand($"exec {target} -c {container} -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('MyShardingDb').Orders.countDocuments({{ OrderId: '{orderId}' }})\"");
             string[] lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             int count = 0;
             foreach (var line in lines)
@@ -374,8 +377,8 @@ namespace MongoDBSharding.Test.StepDefinitions
         [Then(@"""(.*)"" 與 ""(.*)"" 各自的 ""(.*)"" 集合中資料數量皆必須大於 (.*) 筆")]
         public void Then與各自的集合中資料數量皆必須大於筆(string shard1, string shard2, string collectionName, int expectedMin)
         {
-            int shard1Count = GetCollectionCount("statefulset/shard1", 15562, collectionName);
-            int shard2Count = GetCollectionCount("statefulset/shard2", 15563, collectionName);
+            int shard1Count = GetCollectionCount("statefulset/myshard1-sts", 15562, collectionName);
+            int shard2Count = GetCollectionCount("statefulset/myshard2-sts", 15563, collectionName);
 
             shard1Count.Should().BeGreaterThan(expectedMin, $"{shard1} should have received hashed order documents");
             shard2Count.Should().BeGreaterThan(expectedMin, $"{shard2} should have received hashed order documents");
@@ -390,7 +393,7 @@ namespace MongoDBSharding.Test.StepDefinitions
             Console.WriteLine("--- Initializing MongoDB Database Profilers on Secondaries ---");
             foreach (var pod in _activeSecondaries)
             {
-                int port = pod.StartsWith("shard1") ? 15562 : 15563;
+                int port = pod.StartsWith("myshard1") ? 15562 : 15563;
                 SetNodeProfilingLevel(pod, port, 2);
                 Console.WriteLine($"Enabled Profiler (Level 2) on secondary pod: {pod}");
             }
@@ -429,7 +432,7 @@ namespace MongoDBSharding.Test.StepDefinitions
         [Given(@"系統 Web API 服務已成功部署 2 個實體且均已就緒")]
         public async Task Given系統WebAPI服務已成功部署個實體且均已就緒()
         {
-            RunKubectlCommand("rollout status deployment/webapi --timeout=120s");
+            RunKubectlCommand("rollout status deployment/mywebapi-deploy --timeout=120s");
             await GivenWebAPI服務已成功啟動且所有MongoDB節點正常運作();
         }
 
@@ -496,12 +499,12 @@ namespace MongoDBSharding.Test.StepDefinitions
             int sum = 0;
             Console.WriteLine($"--- Profiler Query Counts for {pod1} & {pod2} (Comment: {_testComment}) ---");
             
-            int port1 = pod1.StartsWith("shard1") ? 15562 : 15563;
+            int port1 = pod1.StartsWith("myshard1") ? 15562 : 15563;
             int count1 = GetNodeProfileCount(pod1, port1, _testComment);
             sum += count1;
             Console.WriteLine($"{pod1}: {count1} queries");
 
-            int port2 = pod2.StartsWith("shard1") ? 15562 : 15563;
+            int port2 = pod2.StartsWith("myshard1") ? 15562 : 15563;
             int count2 = GetNodeProfileCount(pod2, port2, _testComment);
             sum += count2;
             Console.WriteLine($"{pod2}: {count2} queries");
@@ -512,13 +515,15 @@ namespace MongoDBSharding.Test.StepDefinitions
 
         private void SetNodeProfilingLevel(string podName, int port, int level)
         {
-            RunKubectlCommand($"exec {podName} -c mongo -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('ShardingDb').setProfilingLevel({level})\"");
+            string container = GetContainerName(podName);
+            RunKubectlCommand($"exec {podName} -c {container} -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('MyShardingDb').setProfilingLevel({level})\"");
         }
 
         private int GetNodeProfileCount(string podName, int port, string comment)
         {
-            string js = $"print(db.getSiblingDB('ShardingDb').system.profile.countDocuments({{ 'command.comment': '{comment}' }}))";
-            string output = RunKubectlCommand($"exec {podName} -c mongo -- mongosh --port {port} --quiet --eval \"{js}\"");
+            string js = $"print(db.getSiblingDB('MyShardingDb').system.profile.countDocuments({{ 'command.comment': '{comment}' }}))";
+            string container = GetContainerName(podName);
+            string output = RunKubectlCommand($"exec {podName} -c {container} -- mongosh --port {port} --quiet --eval \"{js}\"");
             
             string[] lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
@@ -535,10 +540,11 @@ namespace MongoDBSharding.Test.StepDefinitions
         {
             foreach (var pod in _activeSecondaries)
             {
-                int port = pod.StartsWith("shard1") ? 15562 : 15563;
+                int port = pod.StartsWith("myshard1") ? 15562 : 15563;
                 try
                 {
-                    RunKubectlCommand($"exec {pod} -c mongo -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('ShardingDb').setProfilingLevel(0);\"");
+                    string container = GetContainerName(pod);
+                    RunKubectlCommand($"exec {pod} -c {container} -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('MyShardingDb').setProfilingLevel(0);\"");
                     Console.WriteLine($"[Cleanup] Profiling disabled on {pod}");
                 }
                 catch (Exception ex)
@@ -548,7 +554,55 @@ namespace MongoDBSharding.Test.StepDefinitions
             }
         }
 
+        [When(@"外部客戶端嘗試對外網 IP 的 Port ""(.*)"" 進行連線")]
+        public async Task When外部客戶端嘗試對外網IP的Port進行連線(string portStr)
+        {
+            int port = int.Parse(portStr);
+            _lastConnectionSuccessful = false;
+
+            using var tcpClient = new System.Net.Sockets.TcpClient();
+            try
+            {
+                // We attempt connection asynchronously with a 2-second timeout
+                var connectTask = tcpClient.ConnectAsync("localhost", port);
+                var delayTask = Task.Delay(2000);
+
+                var completedTask = await Task.WhenAny(connectTask, delayTask);
+                if (completedTask == connectTask)
+                {
+                    await connectTask; // Will throw if failed
+                    _lastConnectionSuccessful = true;
+                }
+            }
+            catch
+            {
+                _lastConnectionSuccessful = false;
+            }
+        }
+
+        [Then(@"連線應該要成功建立")]
+        public void Then連線應該要成功建立()
+        {
+            _lastConnectionSuccessful.Should().BeTrue($"Expected connection to the external port to succeed, but it failed.");
+        }
+
+        [Then(@"連線應被拒絕 \(Refused\) 或超時 \(Timeout\)")]
+        public void Then連線應被拒絕或超時()
+        {
+            _lastConnectionSuccessful.Should().BeFalse($"Expected connection to the internal port to be refused or timed out, but it succeeded.");
+        }
+
         #region Helpers
+
+        private static string GetContainerName(string target)
+        {
+            if (target.Contains("mymongos") || target.Contains("router")) return "mymongo-router";
+            if (target.Contains("myshard1") || target.Contains("shard1")) return "mymongo-shard1";
+            if (target.Contains("myshard2") || target.Contains("shard2")) return "mymongo-shard2";
+            if (target.Contains("mydefault") || target.Contains("default")) return "mymongo-default";
+            if (target.Contains("myconfigsvr") || target.Contains("configsvr")) return "mymongo-configsvr";
+            return "mymongo";
+        }
 
         private static string RunKubectlCommand(string arguments)
         {
@@ -575,7 +629,8 @@ namespace MongoDBSharding.Test.StepDefinitions
 
         private int GetCollectionCount(string target, int port, string collectionName)
         {
-            string output = RunKubectlCommand($"exec {target} -c mongo -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('ShardingDb').{collectionName}.countDocuments()\"");
+            string container = GetContainerName(target);
+            string output = RunKubectlCommand($"exec {target} -c {container} -- mongosh --port {port} --quiet --eval \"db.getSiblingDB('MyShardingDb').{collectionName}.countDocuments()\"");
             string[] lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
             {
@@ -596,7 +651,8 @@ namespace MongoDBSharding.Test.StepDefinitions
         private MongoStatus GetNodeStatus(string podName, int port)
         {
             string js = "print(JSON.stringify({isSecondary: db.hello().secondary, queryCount: Number(db.serverStatus().opcounters.query)}))";
-            string output = RunKubectlCommand($"exec {podName} -c mongo -- mongosh --port {port} --quiet --eval \"{js}\"");
+            string container = GetContainerName(podName);
+            string output = RunKubectlCommand($"exec {podName} -c {container} -- mongosh --port {port} --quiet --eval \"{js}\"");
             
             string[] lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
@@ -630,7 +686,7 @@ namespace MongoDBSharding.Test.StepDefinitions
             // Shard 1 pods
             for (int i = 0; i < 3; i++)
             {
-                string pod = $"shard1-{i}";
+                string pod = $"myshard1-sts-{i}";
                 try
                 {
                     var status = GetNodeStatus(pod, 15562);
@@ -648,7 +704,7 @@ namespace MongoDBSharding.Test.StepDefinitions
             // Shard 2 pods
             for (int i = 0; i < 3; i++)
             {
-                string pod = $"shard2-{i}";
+                string pod = $"myshard2-sts-{i}";
                 try
                 {
                     var status = GetNodeStatus(pod, 15563);

@@ -1,30 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: webapi
+  name: mywebapi-deploy
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: webapi
+      app: mywebapi-pod
   template:
     metadata:
       labels:
-        app: webapi
+        app: mywebapi-pod
     spec:
       initContainers:
-        - name: wait-for-setup
+        - name: mywait-for-setup
           image: mongo:latest
-          command:
-            - bash
-            - -c
-            - |
-              until mongosh --host mongos --port 15564 --quiet --eval "if (db.getSiblingDB('admin').runCommand({ listShards: 1 }).shards.length < 3) throw 'waiting';" &>/dev/null; do
-                sleep 2
-              done
+          command: [bash, -c, "until mongosh --host mymongos-service --port 15564 --eval 'if(db.adminCommand({listShards:1}).shards.length<3)throw 1' &>/dev/null; do sleep 2; done"]
       containers:
-        - name: webapi
-          image: webapi:latest
+        - name: mywebapi-container
+          image: mywebapi:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -35,10 +29,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: webapi
+  name: mywebapi-service
 spec:
   type: LoadBalancer
   ports:
     - port: 8080
   selector:
-    app: webapi
+    app: mywebapi-pod
