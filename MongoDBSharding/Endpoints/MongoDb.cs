@@ -6,6 +6,11 @@ using MongoDBSharding.Models;
 
 namespace MongoDBSharding.Endpoints;
 
+public class CreateOrderRequest
+{
+    public string? OrderId { get; set; }
+}
+
 public static class ShardingApi
 {
     public static void MapShardingEndpoints(this IEndpointRouteBuilder app)
@@ -13,9 +18,11 @@ public static class ShardingApi
         // 1. Sharded database endpoints (Orders) using the unified MongoDbContext
         var shardingGroup = app.MapGroup("/api/sharding");
 
-        shardingGroup.MapPost("/order/create", async (MongoDbContext db) =>
+        shardingGroup.MapPost("/order/create", async (MongoDbContext db, [FromBody] CreateOrderRequest? req) =>
         {
-            var orderId = Guid.NewGuid().ToString("N").ToUpper();
+            var orderId = (!string.IsNullOrWhiteSpace(req?.OrderId)) ? req.OrderId : Guid.NewGuid().ToString("N").ToUpper();
+            var customerName = "WebGuest_" + new Random().Next(1000, 9999);
+            var amount = Math.Round((decimal)(new Random().NextDouble() * 500 + 5), 2);
 
             var randCountry = await db.Countries
                 .Aggregate()
@@ -25,8 +32,8 @@ public static class ShardingApi
             var order = new Order
             {
                 OrderId = orderId,
-                CustomerName = "WebGuest_" + new Random().Next(1000, 9999),
-                Amount = Math.Round((decimal)(new Random().NextDouble() * 500 + 5), 2),
+                CustomerName = customerName,
+                Amount = amount,
                 Status = "Completed",
                 CountryId = randCountry.Id,
                 CreatedAt = DateTime.UtcNow
