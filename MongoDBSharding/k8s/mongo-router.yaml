@@ -2,10 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mongos
-  labels:
-    app: mongos
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: mongos
@@ -34,11 +31,6 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: ext-port
-      port: 27017
-      targetPort: 15564
-    - name: int-port
-      port: 15564
-      targetPort: 15564
+    - port: 15564
   selector:
     app: mongos

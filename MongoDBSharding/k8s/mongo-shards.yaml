@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: shard1
-  labels:
-    app: shard1
 spec:
   serviceName: shard1-headless
   replicas: 3
@@ -15,27 +13,20 @@ spec:
       labels:
         app: shard1
     spec:
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: 30
       containers:
         - name: mongo
           image: mongo:latest
-          command:
-            - mongod
-            - --shardsvr
-            - --replSet
-            - shard1ReplSet
-            - --port
-            - "15562"
-            - --bind_ip_all
+          command: [mongod, --shardsvr, --replSet, shard1ReplSet, --port, "15562", --bind_ip_all]
           ports:
             - containerPort: 15562
           resources:
             requests:
-              cpu: "100m"
-              memory: "512Mi"
+              cpu: 100m
+              memory: 512Mi
             limits:
-              cpu: "500m"
-              memory: "1024Mi"
+              cpu: 500m
+              memory: 1024Mi
           lifecycle:
             preStop:
               exec:
@@ -43,45 +34,24 @@ spec:
                   - bash
                   - -c
                   - |
-                    if [ "$(hostname)" != "shard1-0" ]; then
-                      echo "Removing myself from replica set..."
-                      PRIMARY=$(mongosh --host shard1-0.shard1-headless --port 15562 --quiet --eval "db.hello().primary" 2>/dev/null)
-                      if [ ! -z "$PRIMARY" ]; then
-                        mongosh --host "$PRIMARY" --eval "rs.remove('$(hostname).shard1-headless:15562')"
-                      fi
-                    fi
+                    [ "$(hostname)" = "shard1-0" ] && exit 0
+                    PRIMARY=$(mongosh --host shard1-0.shard1-headless --port 15562 --quiet --eval "db.hello().primary" 2>/dev/null)
+                    [ ! -z "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "rs.remove('$(hostname).shard1-headless:15562')"
         - name: sidecar
           image: mongo:latest
           command:
             - bash
             - -c
             - |
-              if [ "$(hostname)" = "shard1-0" ]; then
-                echo "Bootstrap node (shard1-0). Skipping auto-join."
-                sleep infinity
-              fi
-              echo "Waiting for local MongoDB (port 15562) to be ready..."
-              until mongosh --port 15562 --eval "db.adminCommand('ping')" &>/dev/null; do
-                sleep 1
-              done
-              echo "Local MongoDB is ready. Waiting for replica set primary to be active..."
+              [ "$(hostname)" = "shard1-0" ] && sleep infinity
+              until mongosh --port 15562 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               while true; do
                 PRIMARY=$(mongosh --host shard1-0.shard1-headless --port 15562 --quiet --eval "db.hello().primary" 2>/dev/null)
-                if [ ! -z "$PRIMARY" ]; then
-                  echo "Found primary: $PRIMARY"
-                  IS_MEMBER=$(mongosh --host "$PRIMARY" --quiet --eval "rs.status().members.some(m => m.name === '$(hostname).shard1-headless:15562')" 2>/dev/null)
-                  if [ "$IS_MEMBER" = "true" ]; then
-                    echo "Already a member. Going to sleep."
-                    sleep infinity
-                  elif [ "$IS_MEMBER" = "false" ]; then
-                    echo "Adding myself to replica set..."
-                    mongosh --host "$PRIMARY" --eval "rs.add('$(hostname).shard1-headless:15562')"
-                    if [ $? -eq 0 ]; then
-                      echo "Successfully joined replica set!"
-                      sleep infinity
-                    fi
-                  fi
-                fi
+                [ ! -z "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "
+                  if (rs.status().members.some(m => m.name === '$(hostname).shard1-headless:15562')) quit(0);
+                  if (rs.add('$(hostname).shard1-headless:15562').ok) quit(0);
+                  quit(1);
+                " && sleep infinity
                 sleep 5
               done
 ---
@@ -92,12 +62,7 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: ext-port
-      port: 27018
-      targetPort: 15562
-    - name: int-port
-      port: 15562
-      targetPort: 15562
+    - port: 15562
   selector:
     app: shard1
 ---
@@ -108,9 +73,7 @@ metadata:
 spec:
   clusterIP: None
   ports:
-    - name: int-port
-      port: 15562
-      targetPort: 15562
+    - port: 15562
   selector:
     app: shard1
 ---
@@ -118,8 +81,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: shard2
-  labels:
-    app: shard2
 spec:
   serviceName: shard2-headless
   replicas: 3
@@ -131,27 +92,20 @@ spec:
       labels:
         app: shard2
     spec:
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: 30
       containers:
         - name: mongo
           image: mongo:latest
-          command:
-            - mongod
-            - --shardsvr
-            - --replSet
-            - shard2ReplSet
-            - --port
-            - "15563"
-            - --bind_ip_all
+          command: [mongod, --shardsvr, --replSet, shard2ReplSet, --port, "15563", --bind_ip_all]
           ports:
             - containerPort: 15563
           resources:
             requests:
-              cpu: "100m"
-              memory: "512Mi"
+              cpu: 100m
+              memory: 512Mi
             limits:
-              cpu: "500m"
-              memory: "1024Mi"
+              cpu: 500m
+              memory: 1024Mi
           lifecycle:
             preStop:
               exec:
@@ -159,45 +113,24 @@ spec:
                   - bash
                   - -c
                   - |
-                    if [ "$(hostname)" != "shard2-0" ]; then
-                      echo "Removing myself from replica set..."
-                      PRIMARY=$(mongosh --host shard2-0.shard2-headless --port 15563 --quiet --eval "db.hello().primary" 2>/dev/null)
-                      if [ ! -z "$PRIMARY" ]; then
-                        mongosh --host "$PRIMARY" --eval "rs.remove('$(hostname).shard2-headless:15563')"
-                      fi
-                    fi
+                    [ "$(hostname)" = "shard2-0" ] && exit 0
+                    PRIMARY=$(mongosh --host shard2-0.shard2-headless --port 15563 --quiet --eval "db.hello().primary" 2>/dev/null)
+                    [ ! -z "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "rs.remove('$(hostname).shard2-headless:15563')"
         - name: sidecar
           image: mongo:latest
           command:
             - bash
             - -c
             - |
-              if [ "$(hostname)" = "shard2-0" ]; then
-                echo "Bootstrap node (shard2-0). Skipping auto-join."
-                sleep infinity
-              fi
-              echo "Waiting for local MongoDB (port 15563) to be ready..."
-              until mongosh --port 15563 --eval "db.adminCommand('ping')" &>/dev/null; do
-                sleep 1
-              done
-              echo "Local MongoDB is ready. Waiting for replica set primary to be active..."
+              [ "$(hostname)" = "shard2-0" ] && sleep infinity
+              until mongosh --port 15563 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               while true; do
                 PRIMARY=$(mongosh --host shard2-0.shard2-headless --port 15563 --quiet --eval "db.hello().primary" 2>/dev/null)
-                if [ ! -z "$PRIMARY" ]; then
-                  echo "Found primary: $PRIMARY"
-                  IS_MEMBER=$(mongosh --host "$PRIMARY" --quiet --eval "rs.status().members.some(m => m.name === '$(hostname).shard2-headless:15563')" 2>/dev/null)
-                  if [ "$IS_MEMBER" = "true" ]; then
-                    echo "Already a member. Going to sleep."
-                    sleep infinity
-                  elif [ "$IS_MEMBER" = "false" ]; then
-                    echo "Adding myself to replica set..."
-                    mongosh --host "$PRIMARY" --eval "rs.add('$(hostname).shard2-headless:15563')"
-                    if [ $? -eq 0 ]; then
-                      echo "Successfully joined replica set!"
-                      sleep infinity
-                    fi
-                  fi
-                fi
+                [ ! -z "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "
+                  if (rs.status().members.some(m => m.name === '$(hostname).shard2-headless:15563')) quit(0);
+                  if (rs.add('$(hostname).shard2-headless:15563').ok) quit(0);
+                  quit(1);
+                " && sleep infinity
                 sleep 5
               done
 ---
@@ -208,12 +141,7 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: ext-port
-      port: 27019
-      targetPort: 15563
-    - name: int-port
-      port: 15563
-      targetPort: 15563
+    - port: 15563
   selector:
     app: shard2
 ---
@@ -224,9 +152,7 @@ metadata:
 spec:
   clusterIP: None
   ports:
-    - name: int-port
-      port: 15563
-      targetPort: 15563
+    - port: 15563
   selector:
     app: shard2
 ---
@@ -234,10 +160,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mydefault
-  labels:
-    app: mydefault
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: mydefault
@@ -249,14 +172,7 @@ spec:
       containers:
         - name: mongo
           image: mongo:latest
-          command:
-            - mongod
-            - --shardsvr
-            - --replSet
-            - mydefaultReplSet
-            - --port
-            - "15565"
-            - --bind_ip_all
+          command: [mongod, --shardsvr, --replSet, mydefaultReplSet, --port, "15565", --bind_ip_all]
           ports:
             - containerPort: 15565
 ---
@@ -267,49 +183,6 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: ext-port
-      port: 27020
-      targetPort: 15565
-    - name: int-port
-      port: 15565
-      targetPort: 15565
+    - port: 15565
   selector:
     app: mydefault
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: shard1-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
-    name: shard1
-  minReplicas: 1
-  maxReplicas: 5
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 50
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: shard2-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
-    name: shard2
-  minReplicas: 1
-  maxReplicas: 5
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 50

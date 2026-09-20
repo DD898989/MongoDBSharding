@@ -2,10 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: configsvr
-  labels:
-    app: configsvr
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: configsvr
@@ -35,11 +32,6 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: ext-port
-      port: 27016
-      targetPort: 15561
-    - name: int-port
-      port: 15561
-      targetPort: 15561
+    - port: 15561
   selector:
     app: configsvr
