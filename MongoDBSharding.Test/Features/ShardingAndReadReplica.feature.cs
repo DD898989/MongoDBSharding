@@ -222,7 +222,7 @@ namespace MongoDBSharding.Test.Features
     await testRunner.AndAsync("我使用特定 OrderId 查詢訂單 33 次，其中 \"ORDER_ID_03\" 查詢 11 次，\"ORDER_ID_05\" 查詢 22 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");
 #line hidden
 #line 41
-    await testRunner.ThenAsync("我再次讀取所有分片唯讀副本的查詢次數，\"shard1-1\" 與 \"shard1-2\" 總和應該增加 10 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
+    await testRunner.ThenAsync("我再次讀取所有分片唯讀副本的查詢次數，\"shard1-1\" 與 \"shard1-2\" 總和應該增加 11 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "那麼");
 #line hidden
 #line 42
     await testRunner.AndAsync("\"shard2-1\" 與 \"shard2-2\" 總和應該增加 22 次", ((string)(null)), ((global::Reqnroll.Table)(null)), "而且");

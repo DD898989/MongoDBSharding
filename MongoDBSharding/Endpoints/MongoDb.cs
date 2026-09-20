@@ -71,29 +71,6 @@ public static class ShardingApi
             return Results.Ok(result);
         });
 
-        shardingGroup.MapGet("/order/list-with-country", async (MongoDbContext db) =>
-        {
-            // 備註：因為 Orders 與 Countries 現在都位於同一個資料庫 (ShardingDb)，
-            // 兩者屬於同一個 MongoDB 連線實例，因此可以直接使用 MongoDB 原生的 $lookup 進行高效的跨表關聯查詢（透過 LINQ Join）。
-            var query = from order in db.Orders.AsQueryable()
-                        join country in db.Countries.AsQueryable() on order.CountryId equals country.Id into joinedCountries
-                        select new OrderDto
-                        {
-                            Id = order.Id,
-                            OrderId = order.OrderId,
-                            CustomerName = order.CustomerName,
-                            Amount = order.Amount,
-                            Status = order.Status,
-                            CountryId = order.CountryId,
-                            CreatedAt = order.CreatedAt,
-                            Country = joinedCountries.FirstOrDefault()
-                        };
-
-            var results = await MongoDB.Driver.IAsyncCursorSourceExtensions.ToListAsync((IAsyncCursorSource<OrderDto>)query);
-            return Results.Ok(results);
-        });
-
-        // 2. Standalone database endpoints (MyCountry) using the unified MongoDbContext
         var countryGroup = app.MapGroup("/api/country");
 
         countryGroup.MapPost("/create", async (MongoDbContext db, [FromBody] MyCountry country) =>

@@ -27,7 +27,6 @@ public class MongoDbContext
     }
 }
 
-[BsonIgnoreExtraElements]
 public class Order
 {
     [BsonId]
@@ -41,16 +40,4 @@ public class Order
     [BsonRepresentation(BsonType.ObjectId)]
     public string? CountryId { get; set; }
     public DateTime CreatedAt { get; set; }
-}
-
-public class OrderDto
-{
-    public string? Id { get; set; }
-    public string? OrderId { get; set; }
-    public string? CustomerName { get; set; }
-    public decimal Amount { get; set; }
-    public string? Status { get; set; }
-    public string? CountryId { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public MyCountry? Country { get; set; }
 }
