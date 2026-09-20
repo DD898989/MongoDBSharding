@@ -14,14 +14,7 @@ spec:
       containers:
         - name: mongo
           image: mongo:latest
-          command:
-            - mongod
-            - --configsvr
-            - --replSet
-            - configReplSet
-            - --port
-            - "15561"
-            - --bind_ip_all
+          command: [mongod, --configsvr, --replSet, configReplSet, --port, "15561", --bind_ip_all]
           ports:
             - containerPort: 15561
 ---
@@ -30,7 +23,6 @@ kind: Service
 metadata:
   name: configsvr
 spec:
-  type: LoadBalancer
   ports:
     - port: 15561
   selector:

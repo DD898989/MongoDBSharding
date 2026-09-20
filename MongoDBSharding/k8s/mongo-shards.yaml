@@ -13,20 +13,13 @@ spec:
       labels:
         app: shard1
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 10
       containers:
         - name: mongo
           image: mongo:latest
           command: [mongod, --shardsvr, --replSet, shard1ReplSet, --port, "15562", --bind_ip_all]
           ports:
             - containerPort: 15562
-          resources:
-            requests:
-              cpu: 100m
-              memory: 512Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
           lifecycle:
             preStop:
               exec:
@@ -36,7 +29,7 @@ spec:
                   - |
                     [ "$(hostname)" = "shard1-0" ] && exit 0
                     PRIMARY=$(mongosh --host shard1-0.shard1-headless --port 15562 --quiet --eval "db.hello().primary" 2>/dev/null)
-                    [ ! -z "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "rs.remove('$(hostname).shard1-headless:15562')"
+                    [ -n "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "rs.remove('$(hostname).shard1-headless:15562')"
         - name: sidecar
           image: mongo:latest
           command:
@@ -47,24 +40,13 @@ spec:
               until mongosh --port 15562 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               while true; do
                 PRIMARY=$(mongosh --host shard1-0.shard1-headless --port 15562 --quiet --eval "db.hello().primary" 2>/dev/null)
-                [ ! -z "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "
+                [ -n "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "
                   if (rs.status().members.some(m => m.name === '$(hostname).shard1-headless:15562')) quit(0);
                   if (rs.add('$(hostname).shard1-headless:15562').ok) quit(0);
                   quit(1);
                 " && sleep infinity
                 sleep 5
               done
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: shard1
-spec:
-  type: LoadBalancer
-  ports:
-    - port: 15562
-  selector:
-    app: shard1
 ---
 apiVersion: v1
 kind: Service
@@ -92,20 +74,13 @@ spec:
       labels:
         app: shard2
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 10
       containers:
         - name: mongo
           image: mongo:latest
           command: [mongod, --shardsvr, --replSet, shard2ReplSet, --port, "15563", --bind_ip_all]
           ports:
             - containerPort: 15563
-          resources:
-            requests:
-              cpu: 100m
-              memory: 512Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
           lifecycle:
             preStop:
               exec:
@@ -115,7 +90,7 @@ spec:
                   - |
                     [ "$(hostname)" = "shard2-0" ] && exit 0
                     PRIMARY=$(mongosh --host shard2-0.shard2-headless --port 15563 --quiet --eval "db.hello().primary" 2>/dev/null)
-                    [ ! -z "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "rs.remove('$(hostname).shard2-headless:15563')"
+                    [ -n "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "rs.remove('$(hostname).shard2-headless:15563')"
         - name: sidecar
           image: mongo:latest
           command:
@@ -126,24 +101,13 @@ spec:
               until mongosh --port 15563 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               while true; do
                 PRIMARY=$(mongosh --host shard2-0.shard2-headless --port 15563 --quiet --eval "db.hello().primary" 2>/dev/null)
-                [ ! -z "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "
+                [ -n "$PRIMARY" ] && mongosh --host "$PRIMARY" --eval "
                   if (rs.status().members.some(m => m.name === '$(hostname).shard2-headless:15563')) quit(0);
                   if (rs.add('$(hostname).shard2-headless:15563').ok) quit(0);
                   quit(1);
                 " && sleep infinity
                 sleep 5
               done
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: shard2
-spec:
-  type: LoadBalancer
-  ports:
-    - port: 15563
-  selector:
-    app: shard2
 ---
 apiVersion: v1
 kind: Service
@@ -181,7 +145,6 @@ kind: Service
 metadata:
   name: mydefault
 spec:
-  type: LoadBalancer
   ports:
     - port: 15565
   selector:

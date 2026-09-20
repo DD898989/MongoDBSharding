@@ -7,9 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 const string DBName = "ShardingDb";
 
-builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Critical);
-builder.Logging.AddFilter("Microsoft", LogLevel.Critical);
-
 builder.Services.AddOpenApi();
 
 string connectionString = "mongodb://mongos:15564/?readPreference=secondaryPreferred";
@@ -20,7 +17,6 @@ builder.Services.AddSingleton<IMongoClient>(new MongoClient(mongoSettings));
 builder.Services.AddSingleton<IMongoDatabase>(sp => 
     sp.GetRequiredService<IMongoClient>().GetDatabase(DBName));
 
-// Register the unified MongoDbContext
 builder.Services.AddSingleton<MongoDbContext>();
 
 var app = builder.Build();
@@ -33,14 +29,7 @@ app.UseSwaggerUI(options =>
 
 app.UseHttpsRedirection();
 
-app.MapGet("/", () => Results.Ok(new
-{
-    Message = "MongoDB Sharding Demonstration API is online and healthy!",
-    SwaggerUrl = "/swagger",
-    StatusUrl = "/api/sharding/status"
-}));
 
-// Register the demonstration endpoints
 app.MapShardingEndpoints();
 
 var client = app.Services.GetRequiredService<IMongoClient>();
@@ -52,7 +41,8 @@ RunAdminCommandIgnoreError(adminDb,
     {
                 { "shardCollection", $"{DBName}.{nameof(MongoDbContext.Orders)}" },
                 { "key", new BsonDocument { { nameof(Order.OrderId), "hashed" } } }
-    }, "already sharded");
+    },
+    "already sharded");
 RunAdminCommandIgnoreError(adminDb,
     new BsonDocument
     {
@@ -60,7 +50,8 @@ RunAdminCommandIgnoreError(adminDb,
                 { "min", new BsonDocument { { nameof(Order.OrderId), BsonMinKey.Value } } },
                 { "max", new BsonDocument { { nameof(Order.OrderId), BsonMaxKey.Value } } },
                 { "zone", "my_zone" }
-    }, "already exists", "overlapping");
+    },
+    "already exists", "overlapping");
 
 app.Run();
 

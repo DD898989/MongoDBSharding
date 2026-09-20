@@ -30,10 +30,10 @@ spec:
               init_rs shard2-0.shard2-headless 15563 shard2ReplSet false
               init_rs mydefault 15565 mydefaultReplSet false
 
-              echo '==== Waiting for mongos to be ready ===='
+              echo "==== Waiting for mongos to be ready ===="
               until mongosh --host mongos --port 15564 --eval "db.adminCommand('ping')" &>/dev/null; do sleep 1; done
               
-              echo '==== Adding shards and enabling sharding via mongos ===='
+              echo "==== Adding shards and enabling sharding via mongos ===="
               mongosh --host mongos --port 15564 --eval '
                 function addShardSafe(shardConn) {
                   try { sh.addShard(shardConn); } catch (e) { if (!e.message.includes("already")) throw e; }
@@ -50,6 +50,6 @@ spec:
                   sh.addShardToZone("shard2ReplSet", "my_zone");
                 } catch (e) { if (!e.message.includes("already")) throw e; }
               '
-              echo '==== MongoDB Sharding Setup Completed successfully! ===='
+              echo "==== MongoDB Sharding Setup Completed successfully! ===="
       restartPolicy: OnFailure
   backoffLimit: 4

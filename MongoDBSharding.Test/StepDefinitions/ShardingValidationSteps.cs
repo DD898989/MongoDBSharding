@@ -52,13 +52,13 @@ namespace MongoDBSharding.Test.StepDefinitions
         [Given(@"Web API 服務已成功啟動且所有 MongoDB 節點正常運作")]
         public async Task GivenWebAPI服務已成功啟動且所有MongoDB節點正常運作()
         {
-            // Wait for up to 30 seconds for the webapi to respond with 200 OK
+            // Wait for up to 300 seconds for the webapi to respond with 200 OK
             var stopwatch = Stopwatch.StartNew();
-            while (stopwatch.Elapsed < TimeSpan.FromSeconds(30))
+            while (stopwatch.Elapsed < TimeSpan.FromSeconds(300))
             {
                 try
                 {
-                    var response = await _httpClient.GetAsync("/");
+                    var response = await _httpClient.GetAsync("/swagger/index.html");
                     if (response.IsSuccessStatusCode)
                     {
                         return;

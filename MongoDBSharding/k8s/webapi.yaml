@@ -1,29 +1,3 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: webapi-sa
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: job-watcher-role
-rules:
-  - apiGroups: ["batch"]
-    resources: ["jobs"]
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: webapi-job-watcher-binding
-subjects:
-  - kind: ServiceAccount
-    name: webapi-sa
-roleRef:
-  kind: Role
-  name: job-watcher-role
-  apiGroup: rbac.authorization.k8s.io
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,16 +11,16 @@ spec:
       labels:
         app: webapi
     spec:
-      serviceAccountName: webapi-sa
       initContainers:
-        - name: wait-for-setup-job
-          image: bitnami/kubectl:latest
+        - name: wait-for-setup
+          image: mongo:latest
           command:
-            - "kubectl"
-            - "wait"
-            - "--for=condition=complete"
-            - "--timeout=120s"
-            - "job/mongodb-setup"
+            - bash
+            - -c
+            - |
+              until mongosh --host mongos --port 15564 --quiet --eval "if (db.getSiblingDB('admin').runCommand({ listShards: 1 }).shards.length < 3) throw 'waiting';" &>/dev/null; do
+                sleep 2
+              done
       containers:
         - name: webapi
           image: webapi:latest
